@@ -40,3 +40,5 @@ Thumbs.db
 .ropeproject
 build
 adtool
+adtool.sublime-project
+adtool.sublime-workspace
