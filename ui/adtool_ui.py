@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'ui\adtool.ui'
+# Form implementation generated from reading ui file 'adtool.ui'
 #
-# Created: Fri Aug 10 18:13:35 2012
+# Created: Wed Oct 03 16:47:51 2012
 #      by: pyside-uic 0.2.14 running on PySide 1.1.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -12,7 +12,7 @@ from PySide import QtCore, QtGui
 class Ui_ADTool(object):
     def setupUi(self, ADTool):
         ADTool.setObjectName("ADTool")
-        ADTool.resize(937, 611)
+        ADTool.resize(952, 611)
         self.verticalLayout = QtGui.QVBoxLayout(ADTool)
         self.verticalLayout.setObjectName("verticalLayout")
         self.horizontalLayout = QtGui.QHBoxLayout()
@@ -56,7 +56,7 @@ class Ui_ADTool(object):
         self.acctable_widget.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.acctable_widget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.acctable_widget.setObjectName("acctable_widget")
-        self.acctable_widget.setColumnCount(4)
+        self.acctable_widget.setColumnCount(6)
         self.acctable_widget.setRowCount(0)
         item = QtGui.QTableWidgetItem()
         self.acctable_widget.setHorizontalHeaderItem(0, item)
@@ -66,6 +66,10 @@ class Ui_ADTool(object):
         self.acctable_widget.setHorizontalHeaderItem(2, item)
         item = QtGui.QTableWidgetItem()
         self.acctable_widget.setHorizontalHeaderItem(3, item)
+        item = QtGui.QTableWidgetItem()
+        self.acctable_widget.setHorizontalHeaderItem(4, item)
+        item = QtGui.QTableWidgetItem()
+        self.acctable_widget.setHorizontalHeaderItem(5, item)
         self.verticalLayout.addWidget(self.acctable_widget)
         self.log_widget = QtGui.QListWidget(ADTool)
         self.log_widget.setMaximumSize(QtCore.QSize(16777215, 192))
@@ -82,8 +86,23 @@ class Ui_ADTool(object):
         self.unlock_button = QtGui.QPushButton(ADTool)
         self.unlock_button.setObjectName("unlock_button")
         self.horizontalLayout_2.addWidget(self.unlock_button)
+        self.line = QtGui.QFrame(ADTool)
+        self.line.setFrameShape(QtGui.QFrame.VLine)
+        self.line.setFrameShadow(QtGui.QFrame.Sunken)
+        self.line.setObjectName("line")
+        self.horizontalLayout_2.addWidget(self.line)
+        self.extend_date = QtGui.QLineEdit(ADTool)
+        self.extend_date.setMaximumSize(QtCore.QSize(100, 16777215))
+        self.extend_date.setObjectName("extend_date")
+        self.horizontalLayout_2.addWidget(self.extend_date)
+        self.extend_button = QtGui.QPushButton(ADTool)
+        self.extend_button.setObjectName("extend_button")
+        self.horizontalLayout_2.addWidget(self.extend_button)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
+        self.version_info = QtGui.QLabel(ADTool)
+        self.version_info.setObjectName("version_info")
+        self.horizontalLayout_2.addWidget(self.version_info)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
 
         self.retranslateUi(ADTool)
@@ -100,9 +119,13 @@ class Ui_ADTool(object):
         self.acctable_widget.setSortingEnabled(True)
         self.acctable_widget.horizontalHeaderItem(0).setText(QtGui.QApplication.translate("ADTool", "Acc", None, QtGui.QApplication.UnicodeUTF8))
         self.acctable_widget.horizontalHeaderItem(1).setText(QtGui.QApplication.translate("ADTool", "Status", None, QtGui.QApplication.UnicodeUTF8))
-        self.acctable_widget.horizontalHeaderItem(2).setText(QtGui.QApplication.translate("ADTool", "DN", None, QtGui.QApplication.UnicodeUTF8))
-        self.acctable_widget.horizontalHeaderItem(3).setText(QtGui.QApplication.translate("ADTool", "✔", None, QtGui.QApplication.UnicodeUTF8))
+        self.acctable_widget.horizontalHeaderItem(2).setText(QtGui.QApplication.translate("ADTool", "Acc Expires", None, QtGui.QApplication.UnicodeUTF8))
+        self.acctable_widget.horizontalHeaderItem(3).setText(QtGui.QApplication.translate("ADTool", "Groups", None, QtGui.QApplication.UnicodeUTF8))
+        self.acctable_widget.horizontalHeaderItem(4).setText(QtGui.QApplication.translate("ADTool", "DN", None, QtGui.QApplication.UnicodeUTF8))
+        self.acctable_widget.horizontalHeaderItem(5).setText(QtGui.QApplication.translate("ADTool", "✔", None, QtGui.QApplication.UnicodeUTF8))
         self.resetpwd_button.setText(QtGui.QApplication.translate("ADTool", "Reset Password", None, QtGui.QApplication.UnicodeUTF8))
         self.disable_button.setText(QtGui.QApplication.translate("ADTool", "Disable Account", None, QtGui.QApplication.UnicodeUTF8))
         self.unlock_button.setText(QtGui.QApplication.translate("ADTool", "Unlock", None, QtGui.QApplication.UnicodeUTF8))
+        self.extend_button.setText(QtGui.QApplication.translate("ADTool", "Extend Account", None, QtGui.QApplication.UnicodeUTF8))
+        self.version_info.setText(QtGui.QApplication.translate("ADTool", "v 10/03/2012 by congnt3", None, QtGui.QApplication.UnicodeUTF8))
 

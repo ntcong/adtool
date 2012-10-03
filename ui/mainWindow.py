@@ -5,6 +5,7 @@
 from PySide import QtGui, QtCore
 from adtool_ui import Ui_ADTool
 import active_directory
+import datetime
 
 
 class MainWindow(QtGui.QWidget):
@@ -38,9 +39,11 @@ class MainWindow(QtGui.QWidget):
         self.change_targetou(self.get_date()[1], self.get_date()[2])
         #self.check_OU()
         self.ui.acctable_widget.horizontalHeader().resizeSection(0, 100)
-        self.ui.acctable_widget.horizontalHeader().resizeSection(2, 350)
-        self.ui.acctable_widget.horizontalHeader().resizeSection(3, 20)
-        self.ui.acctable_widget.horizontalHeader().setResizeMode(3, QtGui.QHeaderView.Fixed)
+        self.ui.acctable_widget.horizontalHeader().resizeSection(2, 110)
+        self.ui.acctable_widget.horizontalHeader().resizeSection(3, 200)
+        self.ui.acctable_widget.horizontalHeader().resizeSection(4, 350)
+        self.ui.acctable_widget.horizontalHeader().resizeSection(5, 20)
+        self.ui.acctable_widget.horizontalHeader().setResizeMode(5, QtGui.QHeaderView.Fixed)
 
     def set_password(self):
         self.default_password = self.ui.defaultpwd_textbox.text()
@@ -52,7 +55,6 @@ class MainWindow(QtGui.QWidget):
     def get_date(self, str=None):
         if str == None:
             if self.ui.date_textbox.text() == '':
-                import datetime
                 now = datetime.datetime.now()
                 return now
             else:
@@ -61,10 +63,27 @@ class MainWindow(QtGui.QWidget):
             #dd/mm/yyyy
             return str[:2], str[3:5], str[6:]
 
-    def check_locked(self, acc='', user=None):
+    def is_locked(self, acc='', user=None):
         if user is None:
             user = active_directory.find_user(acc)
         return 'ADS_UF_LOCKOUT' in user.userAccountControl
+
+    def get_groups(self, user):
+        result = ""
+        for group in user.memberOf:
+            result += '%s; ' % group.cn
+        return result
+
+    def get_acc_expires(self, user):
+        try:
+            return user.accountExpires.strftime('%d/%m/%Y')
+        except (ValueError, OverflowError):
+            return "NO EXPIRES"
+
+    def is_expired(self, user):
+        if self.get_acc_expires(user) == "NO EXPIRES":
+            return False
+        return user.accountExpires < datetime.datetime.now()
 
     def check_account(self):
         '''
@@ -87,12 +106,21 @@ class MainWindow(QtGui.QWidget):
             except:
                 user = None
             if user != None:
-                if self.check_locked(user=user):
-                    self.add_item_table(acc, 'LOCKED', user.distinguishedName, checked=False, color=QtGui.QColor(0, 0, 255))
-                else:
-                    self.add_item_table(acc, 'OK', user.distinguishedName, True)
+                status = ''
+                color = None
+                checked = True
+                status = 'OK'
+                if self.is_locked(user=user):
+                    status = 'LOCKED'
+                    color = QtGui.QColor(0, 0, 255)
+                    checked = False
+                if self.is_expired(user):
+                    status = 'EXPIRED'
+                    color = QtGui.QColor(0, 255, 0)
+                    checked = False
+                self.add_item_table(acc, status, self.get_acc_expires(user), self.get_groups(user), user.distinguishedName, checked, color)
             else:
-                self.add_item_table(acc, 'NOT FOUND', '', False, QtGui.QColor(255, 0, 0))
+                self.add_item_table(acc, status='NOT FOUND', checked=False, color=QtGui.QColor(255, 0, 0))
 
     def disable_account(self):
         user_checked = self.get_checked_table()
@@ -184,13 +212,13 @@ class MainWindow(QtGui.QWidget):
                 result.append(table.item(row, 2).text())
         return result
 
-    def add_item_table(self, acc, status, dn, checked=True, color=None):
+    def add_item_table(self, acc, status, expires='', groups='', dn='', checked=True, color=None):
         # items=[QtGui.QtGui.QTableWidgetItem(ip),
         # QtGui.QtGui.QTableWidgetItem(mac),QtGui.QtGui.QTableWidgetItem(hostname)]
         #     if ip==self.gw['gw']:
         #         items.append(QtGui.QtGui.QTableWidgetItem(u'Gateway'))
-        items = [QtGui.QTableWidgetItem(acc), \
-            QtGui.QTableWidgetItem(status), QtGui.QTableWidgetItem(dn)]
+        items = [QtGui.QTableWidgetItem(acc), QtGui.QTableWidgetItem(status), \
+                QtGui.QTableWidgetItem(expires), QtGui.QTableWidgetItem(groups), QtGui.QTableWidgetItem(dn)]
         item = QtGui.QTableWidgetItem()
         if checked:
             item.setCheckState(QtCore.Qt.Checked)

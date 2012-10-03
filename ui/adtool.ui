@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>937</width>
+    <width>952</width>
     <height>611</height>
    </rect>
   </property>
@@ -122,6 +122,16 @@
      </column>
      <column>
       <property name="text">
+       <string>Acc Expires</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Groups</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
        <string>DN</string>
       </property>
      </column>
@@ -166,6 +176,30 @@
       </widget>
      </item>
      <item>
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="extend_date">
+       <property name="maximumSize">
+        <size>
+         <width>100</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="extend_button">
+       <property name="text">
+        <string>Extend Account</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -177,6 +211,13 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="version_info">
+       <property name="text">
+        <string>v 10/03/2012 by congnt3</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
