@@ -10,7 +10,6 @@ from PySide import QtGui, QtCore
 
 def main():
 
-
     logging.basicConfig(filename='adtool.log',
                         level=logging.DEBUG,
                         format='%(asctime)s %(name)s: %(levelname)-8s %(message)s',
