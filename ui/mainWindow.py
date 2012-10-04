@@ -10,6 +10,7 @@ import datetime
 VERSION = 'v2.0'
 RELEASE_DATE = '04/10/2012'
 
+
 class MainWindow(QtGui.QWidget):
 
     def __init__(self, parent=None):
@@ -212,7 +213,7 @@ class MainWindow(QtGui.QWidget):
             if user != None:
                 status = ''
                 color = None
-                checked = True
+                checked = False
                 status = 'OK'
                 if self.is_locked(user=user):
                     status = 'LOCKED'
