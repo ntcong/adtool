@@ -64,6 +64,7 @@ class MainWindow(QtGui.QWidget):
         menu.addMenu(menu_uncheck)
         check_all = menu_checked.addAction("Check All")
         check_valid = menu_checked.addAction("Check all Valid account")
+        check_invalid = menu_checked.addAction("Check all Invalid account")
         check_ok = menu_checked.addAction("Check all OK account")
         check_locked = menu_checked.addAction("Check all Locked account")
         check_disabled = menu_checked.addAction("Check all Disabled account")
@@ -71,15 +72,40 @@ class MainWindow(QtGui.QWidget):
 
         uncheck_all = menu_uncheck.addAction("Uncheck All")
         uncheck_valid = menu_uncheck.addAction("Uncheck all Valid account")
+        uncheck_invalid = menu_uncheck.addAction("Uncheck all Invalid account")
         uncheck_ok = menu_uncheck.addAction("Uncheck all OK account")
         uncheck_locked = menu_uncheck.addAction("Uncheck all Locked account")
         uncheck_disabled = menu_uncheck.addAction("Uncheck all Disabled account")
         uncheck_expired = menu_uncheck.addAction("Uncheck all Expired account")
         action = menu.exec_(self.ui.acctable_widget.mapToGlobal(pos))
-        if action == check_valid:
-            print 'CHECK'
-        if action == uncheck_valid:
-            print 'UNCHECK'
+        if action == check_all:
+            self.table_check()
+        elif action == uncheck_all:
+            self.table_uncheck()
+        elif action == check_disabled:
+            self.table_check(self.table_filter('DISABLED'))
+        elif action == uncheck_disabled:
+            self.table_uncheck(self.table_filter('DISABLED'))
+        elif action == check_ok:
+            self.table_check(self.table_filter('OK'))
+        elif action == uncheck_ok:
+            self.table_uncheck(self.table_filter('OK'))
+        elif action == check_locked:
+            self.table_check(self.table_filter('LOCKED'))
+        elif action == uncheck_locked:
+            self.table_uncheck(self.table_filter('LOCKED'))
+        elif action == check_valid:
+            self.table_check(self.table_filter('valid'))
+        elif action == uncheck_valid:
+            self.table_uncheck(self.table_filter('valid'))
+        elif action == check_expired:
+            self.table_check(self.table_filter('EXPIRED'))
+        elif action == uncheck_expired:
+            self.table_uncheck(self.table_filter('EXPIRED'))
+        elif action == check_invalid:
+            self.table_check(self.table_filter('NOT FOUND'))
+        elif action == uncheck_invalid:
+            self.table_uncheck(self.table_filter('NOT FOUND'))
 
     def extend_account(self, user=None):
         if user != None:
@@ -196,7 +222,7 @@ class MainWindow(QtGui.QWidget):
                     status = 'EXPIRED'
                     color = QtGui.QColor(0, 255, 0)
                     checked = False
-                if self.is_disabled(user):
+                if self.is_disabled(user=user):
                     status = 'DISABLED'
                     color = QtGui.QColor(0, 0, 255)
                     checked = False
@@ -301,15 +327,50 @@ class MainWindow(QtGui.QWidget):
             self.ui.targetou_textbox.setFocus()
             return None
 
-    def get_checked_table(self):
+    def get_checked_table(self, status=None):
         table = self.ui.acctable_widget
         rows = table.rowCount()
         result = []
         for row in range(rows):
             #DN: table[2], checked: table[3]
             if table.item(row, 5).checkState() == QtCore.Qt.CheckState.Checked:
-                result.append(table.item(row, 4).text())
+                if status == None:
+                    result.append(table.item(row, 4).text())
+                elif status == 'valid' and table.item(row, 1).text() != 'NOT FOUND':
+                    result.append(table.item(row, 4).text())
+                elif table.item(row, 1).text() == status:
+                    result.append(table.item(row, 4).text())
         return result
+
+    def table_filter(self, status=None):
+        table = self.ui.acctable_widget
+        rows = table.rowCount()
+        result = []
+        for row in range(rows):
+            #DN: table[2], checked: table[3]
+            if status == None or status == '':
+                result.append(table.item(row, 0).text())
+            elif status == 'valid' and table.item(row, 1).text() != 'NOT FOUND':
+                result.append(table.item(row, 0).text())
+            elif table.item(row, 1).text() == status:
+                result.append(table.item(row, 0).text())
+        return result
+
+    def table_check(self, acc_list=None):
+        table = self.ui.acctable_widget
+        rows = table.rowCount()
+        for row in range(rows):
+            #table.item(row)
+            if acc_list == None or table.item(row, 0).text() in acc_list:
+                table.item(row, 5).setCheckState(QtCore.Qt.CheckState.Checked)
+
+    def table_uncheck(self, acc_list=None):
+        table = self.ui.acctable_widget
+        rows = table.rowCount()
+        for row in range(rows):
+            #table.item(row)
+            if acc_list == None or table.item(row, 0).text() in acc_list:
+                table.item(row, 5).setCheckState(QtCore.Qt.CheckState.Unchecked)
 
     def add_item_table(self, acc, status, expires='', groups='', dn='', checked=True, color=None):
         # items=[QtGui.QtGui.QTableWidgetItem(ip),
