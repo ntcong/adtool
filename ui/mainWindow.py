@@ -5,10 +5,14 @@
 from PySide import QtGui, QtCore
 from adtool_ui import Ui_ADTool
 import active_directory
+import pywintypes
 import datetime
+from ListHandler import ListHandler
+import logging
 
-VERSION = 'v2.0'
+VERSION = 'v2.1'
 RELEASE_DATE = '04/10/2012'
+log = logging.getLogger('adtool')
 
 
 class MainWindow(QtGui.QWidget):
@@ -20,6 +24,10 @@ class MainWindow(QtGui.QWidget):
         self.ui.setupUi(self)
         self.setWindowTitle("AD Tool")
         self.set_password()
+        listLog = ListHandler()
+        listLog.guiHandler(self.addLog)
+        listLog.setFormatter(logging.Formatter('%(name)-12s %(levelname) -8s: %(message)s'))
+        logging.getLogger('').addHandler(listLog)
         #connect button
         self.connect(self.ui.checkacc_button, \
                         QtCore.SIGNAL('clicked()'), self.check_account)
@@ -56,6 +64,10 @@ class MainWindow(QtGui.QWidget):
         headers = self.ui.acctable_widget.horizontalHeader()
         headers.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         headers.customContextMenuRequested.connect(self.header_popup)
+
+    def addLog(self, message):
+        self.ui.log_widget.addItem(message)
+        self.ui.log_widget.setCurrentRow(self.ui.log_widget.count() - 1, QtGui.QItemSelectionModel.Current)
 
     def header_popup(self, pos):
         menu = QtGui.QMenu()
@@ -118,15 +130,30 @@ class MainWindow(QtGui.QWidget):
             QtGui.QMessageBox.No,  QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.Yes:
             date = self.get_extend_date()
-            date = [int(i) for i in date]
-            date.reverse()
-            date = datetime.datetime(*date)
-            print date
-            for user in user_checked:
-                user_object = active_directory.AD_object("LDAP://%s" % user)
-                user_object.com_object.AccountExpirationDate = date
-                user_object.SetInfo()
-        self.check_account()
+            date_string = ''
+            if date != '0':
+                date = [int(i) for i in date]
+                date.reverse()
+                date = datetime.datetime(*date)
+                date_string = date.strftime('%d/%m/%Y')
+            else:
+                date = datetime.datetime(1970, 1, 1, 0, 0)
+                date_string = u'Không hết hạn'
+            log.info(u'Đặt các user: %s' % [str(i) for i in user_checked])
+            log.info(u'ngày hết hạn: %s' % date_string)
+
+            try:
+                for user in user_checked:
+                    user_object = active_directory.AD_object("LDAP://%s" % user)
+                    user_object.com_object.AccountExpirationDate = date
+                    user_object.SetInfo()
+                    log.info(u'User: %s! DONE' % user)
+            except pywintypes.com_error:
+                QtGui.QMessageBox.critical(self, u'Authentication Error', u'Account đang sử dụng không có đủ quyền hạn')
+                return
+
+            log.info(u'Hoàn tất')
+            self.check_account()
 
     def set_password(self):
         self.default_password = self.ui.defaultpwd_textbox.text()
@@ -155,7 +182,10 @@ class MainWindow(QtGui.QWidget):
                 return self.get_extend_date(self.ui.extend_date.text())
         else:
             #dd/mm/yyyy
-            return str[:2], str[3:5], str[6:]
+            if str == '0':
+                return '0'  # no expires date
+            else:
+                return str[:2], str[3:5], str[6:]
 
     def is_locked(self, acc='', user=None):
         if user is None:
@@ -205,6 +235,7 @@ class MainWindow(QtGui.QWidget):
         account_list = account_list.replace(';', ' ')
         account_list = account_list.replace(',', ' ')
         account_list = account_list.split()
+        log.info(u'Scan danh sách account %s' % [str(i) for i in account_list])
         for acc in account_list:
             try:
                 user = active_directory.find_user(acc)
@@ -230,6 +261,7 @@ class MainWindow(QtGui.QWidget):
                 self.add_item_table(acc, status, self.get_acc_expires(user), self.get_groups(user), user.distinguishedName, checked, color)
             else:
                 self.add_item_table(acc, status='NOT FOUND', checked=False, color=QtGui.QColor(255, 0, 0))
+        log.info(u'Hoàn tất')
 
     def disable_account(self):
         user_checked = self.get_checked_table()
@@ -240,15 +272,23 @@ class MainWindow(QtGui.QWidget):
             target_ou = self.check_OU()
             if target_ou != None:
                 destination_ou = active_directory.AD_object("LDAP://%s" % target_ou)
-                for user in user_checked:
-                    user_object = active_directory.AD_object("LDAP://%s" % user)
-                    user_object.description = 'Disable %s/%s/%s' % self.get_date()
-                    user_object.AccountDisabled = True
-                    user_object.userAccountControl.update('ADS_UF_ACCOUNTDISABLE')
-                    user_object.com_object.AccountDisabled = True
-                    user_object.SetInfo()
-                    destination_ou.com_object.MoveHere(str(user_object.as_string()), str(user_object.Name))
-        self.check_account()
+                log.info(u'Move các user: %s' % [str(i) for i in user_checked])
+                log.info(u' từ %s đến %s' % (target_ou, destination_ou))
+                try:
+                    for user in user_checked:
+                        user_object = active_directory.AD_object("LDAP://%s" % user)
+                        user_object.description = 'Disable %s/%s/%s' % self.get_date()
+                        user_object.AccountDisabled = True
+                        user_object.userAccountControl.update('ADS_UF_ACCOUNTDISABLE')
+                        user_object.com_object.AccountDisabled = True
+                        user_object.SetInfo()
+                        log.info(u'User: %s! DONE' % user)
+                        destination_ou.com_object.MoveHere(str(user_object.as_string()), str(user_object.Name))
+                except pywintypes.com_error:
+                    QtGui.QMessageBox.critical(self, u'Authentication Error', u'Account đang sử dụng không có đủ quyền hạn')
+                    return
+            log.info(u'Hoàn tất')
+            self.check_account()
 
     def reset_password(self):
         user_checked = self.get_checked_table()
@@ -258,9 +298,17 @@ class MainWindow(QtGui.QWidget):
             QtGui.QMessageBox.No, QtGui.QMessageBox.No)
 
         if reply == QtGui.QMessageBox.Yes:
-            for user in user_checked:
-                user_object = active_directory.AD_object("LDAP://%s" % user)
-                user_object.SetPassword(new_password)
+            log.info(u'Reset mật khẩu các user %s thành %s' % ([str(i) for i in user_checked], new_password))
+            try:
+                for user in user_checked:
+                    user_object = active_directory.AD_object("LDAP://%s" % user)
+                    user_object.SetPassword(new_password)
+                    log.info(u'User: %s! DONE' % user)
+            except pywintypes.com_error:
+                QtGui.QMessageBox.critical(self, u'Authentication Error', u'Account đang sử dụng không có đủ quyền hạn')
+                return
+            log.info(u'Hoàn tất')
+            self.check_account()
 
     def unlock_account(self):
         #ADS_UF_LOCKOUT
@@ -269,11 +317,18 @@ class MainWindow(QtGui.QWidget):
             u'Unlock account đã đánh dấu?', QtGui.QMessageBox.Yes |
             QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.Yes:
-            for user in user_checked:
-                user_object = active_directory.AD_object("LDAP://%s" % user)
-                if 'ADS_UF_LOCKOUT' in user_object.userAccountControl:
-                    user_object.userAccountControl.remove('ADS_UF_LOCKOUT')
-        self.check_account()
+            log.info(u'Unlock các user: %s' % [str(i) for i in user_checked])
+            try:
+                for user in user_checked:
+                    user_object = active_directory.AD_object("LDAP://%s" % user)
+                    if 'ADS_UF_LOCKOUT' in user_object.userAccountControl:
+                            user_object.userAccountControl.remove('ADS_UF_LOCKOUT')
+                            log.info('User: %s! DONE' % user)
+            except pywintypes.com_error:
+                QtGui.QMessageBox.critical(self, u'Authentication Error', u'Account đang sử dụng không có đủ quyền hạn')
+                return
+            log.info(u'Hoàn tất')
+            self.check_account()
 
     def acclist_check(self):
         pass
@@ -300,13 +355,15 @@ class MainWindow(QtGui.QWidget):
     def check_extend_date(self):
         success = True
         text = self.ui.extend_date.text()
+        if text == '0':
+            return True
         if len(text) != 10:
             success = False
         try:
             day = int(text[:2])
             month = int(text[3:5])
             year = int(text[6:])
-            if not 1 <= day <= 31 or not 1 <= month <= 12 or not 2000 <= year <= 3000:
+            if not 1 <= day <= 31 or not 1 <= month <= 12 or not 1000 <= year <= 3000:
                 success = False
         except ValueError:
             success = False
@@ -378,16 +435,18 @@ class MainWindow(QtGui.QWidget):
         # QtGui.QtGui.QTableWidgetItem(mac),QtGui.QtGui.QTableWidgetItem(hostname)]
         #     if ip==self.gw['gw']:
         #         items.append(QtGui.QtGui.QTableWidgetItem(u'Gateway'))
+        row = self.ui.acctable_widget.rowCount()
+        self.ui.acctable_widget.setRowCount(row + 1)
         items = [QtGui.QTableWidgetItem(acc), QtGui.QTableWidgetItem(status), \
                 QtGui.QTableWidgetItem(expires), QtGui.QTableWidgetItem(groups), QtGui.QTableWidgetItem(dn)]
         item = QtGui.QTableWidgetItem()
         if checked:
             item.setCheckState(QtCore.Qt.Checked)
+        elif self.ui.acctable_widget.item(row, 5) != None:
+            item.setCheckState(self.ui.acctable_widget.item(row, 5).CheckState())
         else:
             item.setCheckState(QtCore.Qt.Unchecked)
         items.append(item)
-        row = self.ui.acctable_widget.rowCount()
-        self.ui.acctable_widget.setRowCount(row + 1)
         for i in range(len(items)):
             item = items[i]
             item.setTextAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
