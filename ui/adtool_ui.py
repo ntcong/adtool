@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'adtool.ui'
 #
-# Created: Wed Oct 03 16:47:51 2012
+# Created: Wed Oct 03 16:51:49 2012
 #      by: pyside-uic 0.2.14 running on PySide 1.1.1
 #
 # WARNING! All changes made in this file will be lost!

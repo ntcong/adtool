@@ -7,6 +7,8 @@ from adtool_ui import Ui_ADTool
 import active_directory
 import datetime
 
+VERSION = 'v2.0'
+RELEASE_DATE = '04/10/2012'
 
 class MainWindow(QtGui.QWidget):
 
@@ -26,17 +28,23 @@ class MainWindow(QtGui.QWidget):
                         QtCore.SIGNAL('clicked()'), self.reset_password)
         self.connect(self.ui.unlock_button, \
                         QtCore.SIGNAL('clicked()'), self.unlock_account)
+        self.connect(self.ui.extend_button, \
+                        QtCore.SIGNAL('clicked()'), self.extend_account)
         self.connect(self.ui.acclist_textbox, \
                         QtCore.SIGNAL('editingFinished()'), self.acclist_check)
         self.connect(self.ui.date_textbox, \
-                        QtCore.SIGNAL('editingFinished()'), self.check_date)
+                        QtCore.SIGNAL('editingFinished()'), self.check_date_textbox)
+        self.connect(self.ui.extend_date, \
+                        QtCore.SIGNAL('editingFinished()'), self.check_extend_date)
         self.connect(self.ui.targetou_textbox, \
                         QtCore.SIGNAL('editingFinished()'), self.check_OU)
         self.connect(self.ui.defaultpwd_textbox, \
                         QtCore.SIGNAL('editingFinished()'), self.set_password)
 
         self.ui.date_textbox.setText(self.get_date().strftime('%d/%m/%Y'))
+        self.ui.extend_date.setText(self.get_extend_date().strftime('%d/%m/%Y'))
         self.change_targetou(self.get_date()[1], self.get_date()[2])
+        self.ui.version_info.setText('%s %s by CongNT3' % (VERSION, RELEASE_DATE))
         #self.check_OU()
         self.ui.acctable_widget.horizontalHeader().resizeSection(0, 100)
         self.ui.acctable_widget.horizontalHeader().resizeSection(2, 110)
@@ -44,6 +52,54 @@ class MainWindow(QtGui.QWidget):
         self.ui.acctable_widget.horizontalHeader().resizeSection(4, 350)
         self.ui.acctable_widget.horizontalHeader().resizeSection(5, 20)
         self.ui.acctable_widget.horizontalHeader().setResizeMode(5, QtGui.QHeaderView.Fixed)
+        headers = self.ui.acctable_widget.horizontalHeader()
+        headers.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        headers.customContextMenuRequested.connect(self.header_popup)
+
+    def header_popup(self, pos):
+        menu = QtGui.QMenu()
+        menu_checked = QtGui.QMenu('Check')
+        menu_uncheck = QtGui.QMenu('Uncheck')
+        menu.addMenu(menu_checked)
+        menu.addMenu(menu_uncheck)
+        check_all = menu_checked.addAction("Check All")
+        check_valid = menu_checked.addAction("Check all Valid account")
+        check_ok = menu_checked.addAction("Check all OK account")
+        check_locked = menu_checked.addAction("Check all Locked account")
+        check_disabled = menu_checked.addAction("Check all Disabled account")
+        check_expired = menu_checked.addAction("Check all Expired account")
+
+        uncheck_all = menu_uncheck.addAction("Uncheck All")
+        uncheck_valid = menu_uncheck.addAction("Uncheck all Valid account")
+        uncheck_ok = menu_uncheck.addAction("Uncheck all OK account")
+        uncheck_locked = menu_uncheck.addAction("Uncheck all Locked account")
+        uncheck_disabled = menu_uncheck.addAction("Uncheck all Disabled account")
+        uncheck_expired = menu_uncheck.addAction("Uncheck all Expired account")
+        action = menu.exec_(self.ui.acctable_widget.mapToGlobal(pos))
+        if action == check_valid:
+            print 'CHECK'
+        if action == uncheck_valid:
+            print 'UNCHECK'
+
+    def extend_account(self, user=None):
+        if user != None:
+            user_checked = [user]
+        else:
+            user_checked = self.get_checked_table()
+        reply = QtGui.QMessageBox.question(self, 'Extend Account',
+            u'Gia hạn các account đã đánh dấu?', QtGui.QMessageBox.Yes |
+            QtGui.QMessageBox.No,  QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.Yes:
+            date = self.get_extend_date()
+            date = [int(i) for i in date]
+            date.reverse()
+            date = datetime.datetime(*date)
+            print date
+            for user in user_checked:
+                user_object = active_directory.AD_object("LDAP://%s" % user)
+                user_object.com_object.AccountExpirationDate = date
+                user_object.SetInfo()
+        self.check_account()
 
     def set_password(self):
         self.default_password = self.ui.defaultpwd_textbox.text()
@@ -63,10 +119,26 @@ class MainWindow(QtGui.QWidget):
             #dd/mm/yyyy
             return str[:2], str[3:5], str[6:]
 
+    def get_extend_date(self, str=None):
+        if str == None:
+            if self.ui.extend_date.text() == '':
+                now = datetime.datetime.now()
+                return now
+            else:
+                return self.get_extend_date(self.ui.extend_date.text())
+        else:
+            #dd/mm/yyyy
+            return str[:2], str[3:5], str[6:]
+
     def is_locked(self, acc='', user=None):
         if user is None:
             user = active_directory.find_user(acc)
         return 'ADS_UF_LOCKOUT' in user.userAccountControl
+
+    def is_disabled(self, acc='', user=None):
+        if user is None:
+            user = active_directory.find_user(acc)
+        return 'ADS_UF_ACCOUNTDISABLE' in user.userAccountControl
 
     def get_groups(self, user):
         result = ""
@@ -76,7 +148,9 @@ class MainWindow(QtGui.QWidget):
 
     def get_acc_expires(self, user):
         try:
-            return user.accountExpires.strftime('%d/%m/%Y')
+            date = user.accountExpires
+            date += datetime.timedelta(0, 25629, 496730)
+            return date.strftime('%d/%m/%Y')
         except (ValueError, OverflowError):
             return "NO EXPIRES"
 
@@ -89,9 +163,13 @@ class MainWindow(QtGui.QWidget):
         '''
         Get the account list in checkbox and show the information
         '''
-        if not self.check_date():
+        if not self.check_date_textbox():
             return
+        if not self.check_extend_date():
+            return
+        reload(active_directory)  # reload because of COM object caching
         self.ui.acctable_widget.setRowCount(0)
+        #self.ui.acctable_widget.clear()
         account_list = self.ui.acclist_textbox.toPlainText()
         if account_list == None or account_list == '':
             QtGui.QMessageBox.critical(self, u'Input Error', u'Nhập danh sách account trước')
@@ -118,6 +196,10 @@ class MainWindow(QtGui.QWidget):
                     status = 'EXPIRED'
                     color = QtGui.QColor(0, 255, 0)
                     checked = False
+                if self.is_disabled(user):
+                    status = 'DISABLED'
+                    color = QtGui.QColor(0, 0, 255)
+                    checked = False
                 self.add_item_table(acc, status, self.get_acc_expires(user), self.get_groups(user), user.distinguishedName, checked, color)
             else:
                 self.add_item_table(acc, status='NOT FOUND', checked=False, color=QtGui.QColor(255, 0, 0))
@@ -139,6 +221,7 @@ class MainWindow(QtGui.QWidget):
                     user_object.com_object.AccountDisabled = True
                     user_object.SetInfo()
                     destination_ou.com_object.MoveHere(str(user_object.as_string()), str(user_object.Name))
+        self.check_account()
 
     def reset_password(self):
         user_checked = self.get_checked_table()
@@ -163,11 +246,12 @@ class MainWindow(QtGui.QWidget):
                 user_object = active_directory.AD_object("LDAP://%s" % user)
                 if 'ADS_UF_LOCKOUT' in user_object.userAccountControl:
                     user_object.userAccountControl.remove('ADS_UF_LOCKOUT')
+        self.check_account()
 
     def acclist_check(self):
         pass
 
-    def check_date(self):
+    def check_date_textbox(self):
         success = True
         text = self.ui.date_textbox.text()
         if len(text) != 10:
@@ -183,10 +267,25 @@ class MainWindow(QtGui.QWidget):
         if not success:
             QtGui.QMessageBox.critical(self, u'Input Error', u'Ngày tháng không hợp lệ')
             self.ui.date_textbox.setFocus()
-        else:
-            #change target ou
-            self.change_targetou(text[3:5], text[6:])
 
+        return success
+
+    def check_extend_date(self):
+        success = True
+        text = self.ui.extend_date.text()
+        if len(text) != 10:
+            success = False
+        try:
+            day = int(text[:2])
+            month = int(text[3:5])
+            year = int(text[6:])
+            if not 1 <= day <= 31 or not 1 <= month <= 12 or not 2000 <= year <= 3000:
+                success = False
+        except ValueError:
+            success = False
+        if not success:
+            QtGui.QMessageBox.critical(self, u'Input Error', u'Ngày tháng không hợp lệ')
+            self.ui.extend_date.setFocus()
         return success
 
     def check_OU(self):
@@ -208,8 +307,8 @@ class MainWindow(QtGui.QWidget):
         result = []
         for row in range(rows):
             #DN: table[2], checked: table[3]
-            if table.item(row, 3).checkState() == QtCore.Qt.CheckState.Checked:
-                result.append(table.item(row, 2).text())
+            if table.item(row, 5).checkState() == QtCore.Qt.CheckState.Checked:
+                result.append(table.item(row, 4).text())
         return result
 
     def add_item_table(self, acc, status, expires='', groups='', dn='', checked=True, color=None):
